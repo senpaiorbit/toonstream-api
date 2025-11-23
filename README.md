@@ -1,8 +1,8 @@
 # ToonStream API
 
-A comprehensive RESTful API for scraping anime content from [toonstream.love](https://toonstream.love). Built with Hono framework and native Fetch API, optimized for serverless deployment.
+A comprehensive RESTful API for scraping anime content from [toonstream.love](https://toonstream.love). Built with Hono framework and Bun.js runtime.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/ryanwtf88/toonstream-api)
+[![Deploy on Pterodactyl](https://img.shields.io/badge/Deploy-Pterodactyl-blue)](./PTERODACTYL.md)
 
 ## Features
 
@@ -15,33 +15,30 @@ A comprehensive RESTful API for scraping anime content from [toonstream.love](ht
 - ⚡ **Fast & Cached** - Built-in caching for optimal performance
 - 🛡️ **Rate Limited** - Protection against abuse
 - 📖 **API Documentation** - Interactive Swagger UI
-- ☁️ **Serverless Ready** - Optimized for Vercel deployment
+- 🚀 **Pterodactyl Ready** - Optimized for panel deployment
 
 ## Quick Start
 
-### Deploy to Vercel (Recommended)
+### Pterodactyl Deployment (Recommended)
 
-Click the button above or:
+See [PTERODACTYL.md](./PTERODACTYL.md) for complete deployment guide.
 
-```bash
-vercel deploy
-```
+**Quick Steps:**
+1. Import `egg.json` to your Pterodactyl panel
+2. Create new server with ToonStream API egg
+3. Start and access at `http://your-ip:3030`
 
 ### Local Development
 
 1. **Install dependencies**
 
 ```bash
-npm install
-# or
 bun install
 ```
 
 2. **Start development server**
 
 ```bash
-npm run dev
-# or
 bun run dev
 ```
 

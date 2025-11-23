@@ -164,5 +164,8 @@ console.log(`🚀 ToonStream API starting on port ${config.port}...`);
 console.log(`📚 Documentation available at http://localhost:${config.port}/docs`);
 console.log(`🌐 Base URL: ${config.baseUrl}`);
 
-// Export for Vercel serverless
-export default app;
+export default {
+    port: config.port,
+    fetch: app.fetch
+};
+
