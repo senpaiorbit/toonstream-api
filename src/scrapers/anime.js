@@ -88,42 +88,50 @@ export const scrapeAnimeDetails = async (id) => {
         $('[class*="season"], .episodes-list, [id*="season"]').each((_, seasonEl) => {
             const seasonText = $(seasonEl).find('[class*="season-title"], h2, h3').first().text();
             const seasonMatch = seasonText.match(/season\s*(\d+)/i);
-            const seasonNum = seasonMatch ? seasonMatch[1] : '1';
+            const seasonNum = seasonMatch ? parseInt(seasonMatch[1]) : 1;
 
             const episodes = [];
             $(seasonEl).find('a[href*="/episode/"]').each((_, el) => {
-                const episode = extractEpisodeInfo($(el), $);
+                // Pass the container element (li or div) if the link is inside it
+                const container = $(el).closest('li, .episode-item');
+                const elementToParse = container.length ? container : $(el).parent();
+
+                const episode = extractEpisodeInfo(elementToParse, $);
                 if (episode && episode.id) {
+                    // Force season number if we found it in the container
+                    if (!episode.season || episode.season === 1) {
+                        episode.season = seasonNum;
+                    }
                     episodes.push(episode);
                     allEpisodes.push(episode);
                 }
             });
 
             if (episodes.length > 0) {
-                seasons[`season${seasonNum}`] = episodes;
+                seasons[seasonNum] = episodes;
             }
         });
 
-        // If no seasons found, try to get all episode links
+        // If no seasons found via containers, try to get all episode links and group them
         if (Object.keys(seasons).length === 0) {
             $('a[href*="/episode/"]').each((_, el) => {
-                const episode = extractEpisodeInfo($(el), $);
+                const container = $(el).closest('li, .episode-item');
+                const elementToParse = container.length ? container : $(el).parent();
+
+                const episode = extractEpisodeInfo(elementToParse, $);
                 if (episode && episode.id) {
                     allEpisodes.push(episode);
                 }
             });
 
-            // Group by season number if available
-            const seasonGroups = {};
+            // Group by season number
             allEpisodes.forEach(ep => {
-                const seasonKey = `season${ep.season || 1}`;
-                if (!seasonGroups[seasonKey]) {
-                    seasonGroups[seasonKey] = [];
+                const seasonNum = ep.season || 1;
+                if (!seasons[seasonNum]) {
+                    seasons[seasonNum] = [];
                 }
-                seasonGroups[seasonKey].push(ep);
+                seasons[seasonNum].push(ep);
             });
-
-            Object.assign(seasons, seasonGroups);
         }
 
         const data = {
@@ -150,4 +158,40 @@ export const scrapeAnimeDetails = async (id) => {
     }
 };
 
-export default { scrapeAnimeDetails };
+/**
+ * Check availability for multiple anime
+ * @param {string[]} ids - Array of anime IDs
+ * @returns {Promise<object>} Availability data
+ */
+export const checkBatchAvailability = async (ids) => {
+    try {
+        const promises = ids.map(async (id) => {
+            try {
+                const data = await scrapeAnimeDetails(id);
+                return {
+                    id,
+                    available: true,
+                    totalEpisodes: data.totalEpisodes,
+                    hasHindi: data.languages.includes('Hindi')
+                };
+            } catch (error) {
+                return {
+                    id,
+                    available: false,
+                    error: error.message
+                };
+            }
+        });
+
+        const results = await Promise.all(promises);
+        return {
+            success: true,
+            results
+        };
+    } catch (error) {
+        console.error('Error checking batch availability:', error.message);
+        throw new Error(`Failed to check batch availability: ${error.message}`);
+    }
+};
+
+export default { scrapeAnimeDetails, checkBatchAvailability };

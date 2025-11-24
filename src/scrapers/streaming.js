@@ -21,9 +21,20 @@ export const scrapeEpisodeStreaming = async (episodeId) => {
 
         // Extract episode info
         const title = $('h1, .entry-title, .title').first().text().trim();
-        const episodeMatch = title.match(/(\d+)x(\d+)/);
-        const season = episodeMatch ? parseInt(episodeMatch[1]) : null;
-        const episode = episodeMatch ? parseInt(episodeMatch[2]) : null;
+
+        // Try to parse from title first
+        let episodeMatch = title.match(/(\d+)x(\d+)/);
+        let season = episodeMatch ? parseInt(episodeMatch[1]) : null;
+        let episode = episodeMatch ? parseInt(episodeMatch[2]) : null;
+
+        // If not found in title, try to parse from ID
+        if (!season || !episode) {
+            const idMatch = episodeId.match(/-(\d+)x(\d+)$/);
+            if (idMatch) {
+                season = parseInt(idMatch[1]);
+                episode = parseInt(idMatch[2]);
+            }
+        }
 
         // Extract streaming sources
         const sources = [];

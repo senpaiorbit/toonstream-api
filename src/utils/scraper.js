@@ -199,12 +199,43 @@ export const extractEpisodeInfo = ($element, $) => {
         const link = $element.find('a').first();
         const url = normalizeUrl(link.attr('href'));
         const title = link.text().trim() || link.attr('title') || '';
-        const id = extractAnimeId(url);
+
+        // Extract ID from URL: /episode/anime-id-episode-num/
+        // Example: /episode/naruto-1x1/ -> naruto-1x1
+        let id = null;
+        if (url) {
+            const match = url.match(/\/episode\/([^\/]+)/);
+            if (match) {
+                id = match[1];
+            }
+        }
+
+        // Parse season and episode number from ID or title
+        // ID format: anime-slug-SxEp or anime-slug-episode-num
+        let season = 1;
+        let number = 0;
+
+        if (id) {
+            // Try standard format: ...-1x15
+            const seMatch = id.match(/-(\d+)x(\d+)$/);
+            if (seMatch) {
+                season = parseInt(seMatch[1]);
+                number = parseInt(seMatch[2]);
+            } else {
+                // Try format: ...-episode-15
+                const epMatch = id.match(/-episode-(\d+)$/);
+                if (epMatch) {
+                    number = parseInt(epMatch[1]);
+                }
+            }
+        }
 
         return {
             id,
             title,
-            url
+            url,
+            season,
+            number
         };
     } catch (error) {
         console.error('Error extracting episode info:', error);

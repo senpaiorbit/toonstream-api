@@ -13,6 +13,7 @@ import animeRoutes from './routes/anime.js';
 import episodeRoutes from './routes/episodes.js';
 import categoryRoutes from './routes/categories.js';
 import scheduleRoutes from './routes/schedule.js';
+import embedRoutes from './routes/embed.js';
 
 const app = new Hono();
 
@@ -39,6 +40,7 @@ app.route('/api/episode', episodeRoutes);
 app.route('/api/category', categoryRoutes);
 app.route('/api/categories', categoryRoutes);
 app.route('/api/schedule', scheduleRoutes);
+app.route('/', embedRoutes); // Mount at root to handle both /api/source and /embed
 
 // Root endpoint
 app.get('/', (c) => {
@@ -59,7 +61,10 @@ app.get('/', (c) => {
             movies: '/api/category/type/movies?page={page}',
             series: '/api/category/type/series?page={page}',
             schedule: '/api/schedule',
-            daySchedule: '/api/schedule/{day}'
+            daySchedule: '/api/schedule/{day}',
+            batchAvailability: '/api/anime/batch-availability',
+            source: '/api/source/{id}',
+            embed: '/embed/{id}'
         },
         documentation: '/docs'
     });
@@ -134,6 +139,33 @@ app.get('/api/openapi.json', (c) => {
                     responses: {
                         '200': {
                             description: 'Successful response'
+                        }
+                    }
+                },
+                '/api/anime/batch-availability': {
+                    post: {
+                        summary: 'Check batch availability',
+                        description: 'Check availability for multiple anime IDs',
+                        requestBody: {
+                            required: true,
+                            content: {
+                                'application/json': {
+                                    schema: {
+                                        type: 'object',
+                                        properties: {
+                                            ids: {
+                                                type: 'array',
+                                                items: { type: 'string' }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        responses: {
+                            '200': {
+                                description: 'Successful response'
+                            }
                         }
                     }
                 }

@@ -53,10 +53,26 @@ export const scrapeSearch = async (keyword, page = 1) => {
                         description = description.substring(0, 200) + '...';
                     }
 
+                    // Check for Hindi dub availability
+                    const hasHindi = anime.title.toLowerCase().includes('hindi') ||
+                        $(el).text().toLowerCase().includes('hindi dub');
+
+                    // Try to extract total episodes if available in the card
+                    let totalEpisodes = null;
+                    const epText = $(el).find('.episodes, .eps, .episode-count').text().trim();
+                    if (epText) {
+                        const epMatch = epText.match(/(\d+)/);
+                        if (epMatch) {
+                            totalEpisodes = parseInt(epMatch[1]);
+                        }
+                    }
+
                     results.push({
                         ...anime,
                         type,
-                        description
+                        description,
+                        hasHindi,
+                        totalEpisodes
                     });
                 }
             });
@@ -99,7 +115,9 @@ export const scrapeSearchSuggestions = async (keyword) => {
             id: item.id,
             title: item.title,
             poster: item.poster,
-            type: item.type
+            type: item.type,
+            hasHindi: item.hasHindi,
+            totalEpisodes: item.totalEpisodes
         }));
 
         const data = {
