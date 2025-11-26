@@ -1,44 +1,8 @@
 {
-    "functions": {
-        "index.js": {
-            "maxDuration": 30,
-            "memory": 1024
-        }
-    },
-    "headers": [
+    "rewrites": [
         {
-            "source": "/embed/(.*)",
-            "headers": [
-                {
-                    "key": "X-Frame-Options",
-                    "value": "ALLOWALL"
-                },
-                {
-                    "key": "Access-Control-Allow-Origin",
-                    "value": "*"
-                },
-                {
-                    "key": "Access-Control-Allow-Methods",
-                    "value": "GET, OPTIONS"
-                }
-            ]
-        },
-        {
-            "source": "/api/(.*)",
-            "headers": [
-                {
-                    "key": "Access-Control-Allow-Origin",
-                    "value": "*"
-                },
-                {
-                    "key": "Access-Control-Allow-Methods",
-                    "value": "GET, POST, OPTIONS"
-                },
-                {
-                    "key": "Access-Control-Allow-Headers",
-                    "value": "Content-Type, Authorization"
-                }
-            ]
+            "source": "/(.*)",
+            "destination": "/index.js"
         }
     ]
 }
