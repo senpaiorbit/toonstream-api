@@ -1,6 +1,4 @@
-```json
 {
-    "version": 2,
     "functions": {
         "index.js": {
             "maxDuration": 30,
@@ -44,4 +42,3 @@
         }
     ]
 }
-```
