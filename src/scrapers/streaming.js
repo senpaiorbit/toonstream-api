@@ -1,4 +1,4 @@
-import { fetchPage, parseHTML, cleanText } from '../utils/scraper.js';
+import { fetchPage, parseHTML, cleanText, decodeHTMLEntities } from '../utils/scraper.js';
 import { getCache, setCache } from '../utils/cache.js';
 
 /**
@@ -104,12 +104,12 @@ async function scrapeWithFetch(episodeId) {
 
     // Extract streaming sources
     const sources = [];
-
-    // Look for iframe sources
     $('iframe, [class*="player"] iframe').each((_, el) => {
-        const src = $(el).attr('src') || $(el).attr('data-src') || $(el).attr('data-lazy-src');
+        const src = $(el).attr('data-src') || $(el).attr('src') || $(el).attr('data-lazy-src');
         if (src) {
-            const fullSrc = src.startsWith('http') ? src : (src.startsWith('//') ? `https:${src}` : `https://toonstream.one${src}`);
+            let fullSrc = src.startsWith('http') ? src : (src.startsWith('//') ? `https:${src}` : `https://toonstream.one${src}`);
+            // Decode HTML entities
+            fullSrc = decodeHTMLEntities(fullSrc);
             sources.push({
                 type: 'iframe',
                 url: fullSrc,

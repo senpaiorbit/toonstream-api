@@ -309,3 +309,51 @@ export const extractSlug = (url) => {
     const match = url.match(/\/([^\/]+)\/?$/);
     return match ? match[1] : null;
 };
+
+/**
+ * Decode HTML entities
+ * @param {string} text - Text to decode
+ * @returns {string} Decoded text
+ */
+export const decodeHTMLEntities = (text) => {
+    if (!text) return text;
+    return text
+        .replace(/&amp;/g, '&')
+        .replace(/&#038;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#039;/g, "'");
+};
+
+/**
+ * Extract player URL from page
+ * @param {CheerioAPI} $ - Cheerio instance
+ * @returns {string|null} Player URL
+ */
+export const extractPlayerUrl = ($) => {
+    // Prioritize data-src, then src, then data-lazy-src
+    // Look in common player containers
+    let src = $('iframe[data-src*="player"], iframe[data-src*="embed"], iframe[data-src*="trembed"], .player iframe').attr('data-src')
+        || $('iframe[src*="player"], iframe[src*="embed"], iframe[src*="trembed"], .player iframe').attr('src');
+
+    if (!src) {
+        // Fallback search
+        src = $('iframe').filter((i, el) => {
+            const s = $(el).attr('data-src') || $(el).attr('src') || '';
+            return s.includes('video') || s.includes('stream') || s.includes('play') || s.includes('trembed');
+        }).first().attr('data-src') || $('iframe').filter((i, el) => {
+            const s = $(el).attr('data-src') || $(el).attr('src') || '';
+            return s.includes('video') || s.includes('stream') || s.includes('play') || s.includes('trembed');
+        }).first().attr('src');
+    }
+
+    if (src) {
+        src = decodeHTMLEntities(src);
+        if (src.startsWith('//')) src = `https:${src}`;
+        else if (src.startsWith('/')) src = `https://toonstream.one${src}`;
+        else if (src.startsWith('http://')) src = src.replace('http://', 'https://');
+    }
+
+    return src;
+};
