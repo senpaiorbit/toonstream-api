@@ -26090,7 +26090,12 @@ function generateCleanPlayer(iframeSrc) {
             </head>
             <body>
                 <div id="loader"><div class="spinner"></div></div>
-                <iframe src="${iframeSrc}" allowfullscreen allow="autoplay; encrypted-media" onload="document.getElementById('loader').style.opacity='0'; setTimeout(() => document.getElementById('loader').style.display='none', 500);"></iframe>
+                <iframe 
+                    src="${iframeSrc}" 
+                    allowfullscreen 
+                    allow="autoplay; encrypted-media; fullscreen; picture-in-picture" 
+                    onload="document.getElementById('loader').style.opacity='0'; setTimeout(() => document.getElementById('loader').style.display='none', 500);"
+                ></iframe>
             </body>
         </html>
     `;
@@ -26100,21 +26105,48 @@ function getAdBlockScript() {
   return `
         (function() {
             'use strict';
-            // Block popup windows
+            
+            // Aggressive popup blocking
             const originalWindowOpen = window.open;
-            window.open = function() { console.log('[AdBlock] Blocked popup window'); return null; };
+            window.open = function() { 
+                console.log('[AdBlock] Blocked popup window'); 
+                return null; 
+            };
+            
+            // Block all new window/tab attempts
+            window.addEventListener('click', function(e) {
+                if (e.target.tagName === 'A' && e.target.target === '_blank') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('[AdBlock] Blocked new tab');
+                    return false;
+                }
+            }, true);
+            
             // Block popunders
             window.addEventListener('blur', function(e) {
-                if (document.activeElement && document.activeElement.tagName === 'IFRAME') { e.stopImmediatePropagation(); }
+                if (document.activeElement && document.activeElement.tagName === 'IFRAME') { 
+                    e.stopImmediatePropagation(); 
+                }
             }, true);
+            
+            // Block beforeunload popups
+            window.addEventListener('beforeunload', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                return undefined;
+            }, true);
+            
             // Block common ad scripts
-            const blockList = ['doubleclick', 'googlesyndication', 'googleadservices', 'adservice', 'advertising', 'adserver', '/ads/', 'popunder', 'popup'];
+            const blockList = ['doubleclick', 'googlesyndication', 'googleadservices', 'adservice', 'advertising', 'adserver', '/ads/', 'popunder', 'popup', 'pop-up'];
+            
             // Override document.write
             const originalDocWrite = document.write;
             document.write = function(content) {
                 if (blockList.some(pattern => content.toLowerCase().includes(pattern.toLowerCase()))) return;
                 return originalDocWrite.apply(document, arguments);
             };
+            
             // Block createElement
             const originalCreateElement = document.createElement;
             document.createElement = function(tagName) {
@@ -26128,6 +26160,7 @@ function getAdBlockScript() {
                 }
                 return element;
             };
+            
             // Remove ads
             function removeAds() {
                 const adSelectors = ['[class*="ad-"]', '[id*="ad-"]', '[class*="ads"]', '[id*="ads"]', '[class*="banner"]', '[class*="popup"]', '[class*="overlay"]:not([class*="player"])', 'iframe[src*="doubleclick"]', 'iframe[src*="googlesyndication"]', 'iframe[src*="advertising"]'];
@@ -26139,14 +26172,18 @@ function getAdBlockScript() {
                     } catch (e) {}
                 });
             }
+            
             document.addEventListener('DOMContentLoaded', removeAds);
             setInterval(removeAds, 1000);
+            
             // Block right-click on ads
             document.addEventListener('contextmenu', function(e) {
                 if (e.target.tagName === 'IFRAME' && e.target.src && blockList.some(pattern => e.target.src.toLowerCase().includes(pattern))) {
-                    e.preventDefault(); return false;
+                    e.preventDefault(); 
+                    return false;
                 }
             }, true);
+            
             console.log('[Embed] Ad-blocking initialized');
         })();
     `;
