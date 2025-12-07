@@ -13,8 +13,7 @@
     "start": "wrangler dev",
     "lint": "eslint",
     "lint:fix": "eslint --fix && prettier . --write",
-    "deploy": "wrangler deploy",
-    "health": "node scripts/health_check.js"
+    "deploy": "wrangler deploy"
   },
   "keywords": [
     "anime",

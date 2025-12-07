@@ -62,59 +62,64 @@ embed.get('/embed/:id', async (c) => {
             if (episodeData && episodeData.sources && episodeData.sources.length > 0) {
                 allSources = episodeData.sources;
 
-                // Try each source until we find one that works
-                for (const source of allSources) {
+                // Optimization: Parallel fetching with Promise.any
+                // We map all sources to promises and race them to find the first working one
+                const fetchSource = async (source) => {
                     const sourceUrl = source.url;
-                    console.log(`[Embed] Trying source: ${sourceUrl}`);
-
-                    // If this is a ToonStream player URL (trembed), try to extract the real iframe
-                    if (sourceUrl.includes('trembed') || sourceUrl.includes('toonstream.one/home')) {
-                        try {
-                            const playerResponse = await axios.get(sourceUrl, {
-                                headers: {
-                                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                                    'Referer': `https://toonstream.one/episode/${id}/`,
-                                },
-                                timeout: 10000
-                            });
-
-                            // Optimization: Use Regex instead of Cheerio to save CPU/Memory
-                            // Pattern to find iframe src or data-src
-                            let realIframeSrc = null;
-                            const dataSrcMatch = playerResponse.data.match(/<iframe[^>]+data-src=["']([^"']+)["']/i);
-                            const srcMatch = playerResponse.data.match(/<iframe[^>]+src=["']([^"']+)["']/i);
-
-                            if (dataSrcMatch) realIframeSrc = dataSrcMatch[1];
-                            else if (srcMatch) realIframeSrc = srcMatch[1];
-
-                            if (realIframeSrc) {
-                                realIframeSrc = decodeHTMLEntities(realIframeSrc);
-                                // Clean up URL
-                                if (realIframeSrc.startsWith('//')) realIframeSrc = `https:${realIframeSrc}`;
-                                else if (realIframeSrc.startsWith('/')) realIframeSrc = `https://toonstream.one${realIframeSrc}`;
-                                else if (realIframeSrc.startsWith('http://')) realIframeSrc = realIframeSrc.replace('http://', 'https://');
-                            }
-
-                            if (realIframeSrc) {
-                                // Skip vidstreaming.xyz as it's currently down
-                                if (realIframeSrc.includes('vidstreaming.xyz')) {
-                                    console.log(`[Embed] Skipping vidstreaming.xyz (known to be down)`);
-                                    continue;
-                                }
-
-                                console.log(`[Embed] Successfully extracted: ${realIframeSrc}`);
-                                iframeSrc = realIframeSrc;
-                                break; // Found a working source
-                            }
-                        } catch (error) {
-                            console.error(`[Embed] Failed to extract from ${sourceUrl}: ${error.message}`);
-                            continue; // Try next source
-                        }
-                    } else {
-                        // Direct iframe URL
-                        iframeSrc = sourceUrl;
-                        break;
+                    // Direct iframe - resolve immediately
+                    if (!sourceUrl.includes('trembed') && !sourceUrl.includes('toonstream.one/home')) {
+                        return sourceUrl;
                     }
+
+                    // Trembed URL - fetch and extract
+                    try {
+                        console.log(`[Embed] Fetching source: ${sourceUrl}`);
+                        const playerResponse = await axios.get(sourceUrl, {
+                            headers: {
+                                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                                'Referer': `https://toonstream.one/episode/${id}/`,
+                            },
+                            timeout: 4000 // Reduced timeout to 4s
+                        });
+
+                        // Regex extraction
+                        let realIframeSrc = null;
+                        const dataSrcMatch = playerResponse.data.match(/<iframe[^>]+data-src=["']([^"']+)["']/i);
+                        const srcMatch = playerResponse.data.match(/<iframe[^>]+src=["']([^"']+)["']/i);
+
+                        if (dataSrcMatch) realIframeSrc = dataSrcMatch[1];
+                        else if (srcMatch) realIframeSrc = srcMatch[1];
+
+                        if (realIframeSrc) {
+                            realIframeSrc = decodeHTMLEntities(realIframeSrc);
+                            if (realIframeSrc.startsWith('//')) realIframeSrc = `https:${realIframeSrc}`;
+                            else if (realIframeSrc.startsWith('/')) realIframeSrc = `https://toonstream.one${realIframeSrc}`;
+                            else if (realIframeSrc.startsWith('http://')) realIframeSrc = realIframeSrc.replace('http://', 'https://');
+
+                            // Skip vidstreaming.xyz
+                            if (realIframeSrc.includes('vidstreaming.xyz')) {
+                                throw new Error('Skipping vidstreaming.xyz (disabled)');
+                            }
+
+                            console.log(`[Embed] Successfully extracted: ${realIframeSrc}`);
+                            return realIframeSrc;
+                        }
+                        throw new Error('No iframe found in source');
+                    } catch (err) {
+                        // console.error(`[Embed] Source failed: ${sourceUrl} - ${err.message}`);
+                        throw err; // Propagate error for Promise.any
+                    }
+                };
+
+                // Limit concurrency to 5 to avoid "Too many subrequests"
+                const activeSources = allSources.slice(0, 5);
+
+                try {
+                    iframeSrc = await Promise.any(activeSources.map(s => fetchSource(s)));
+                } catch (aggregateError) {
+                    console.error('[Embed] All sources failed:', aggregateError.errors);
+                    // Fallback: throw the first error or a generic one
+                    throw new Error('No working video source found (all attempts failed)');
                 }
             }
         } catch (error) {
