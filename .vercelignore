@@ -1,0 +1,13 @@
+node_modules
+.env.local
+.env*.local
+*.log
+.cache
+.DS_Store
+bun.lockb
+__pycache__/
+*.pyc
+
+# Development files
+src/server.js
+CONTRIBUTING.md
