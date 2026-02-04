@@ -9,22 +9,166 @@ const embed = new Hono();
 
 /**
  * GET /api/source/:id
- * Get sources by scraping (kept for compatibility)
+ * Get all server sources in JSON format
  */
 embed.get('/api/source/:id', async (c) => {
     try {
         const id = c.req.param('id');
+        const cacheKey = `sources:${id}`;
 
-        // Return a simple response pointing to embed
-        return c.json({
+        // Try to get from cache first
+        const cachedData = getCache(cacheKey);
+        if (cachedData) {
+            console.log(`[Sources] Serving cached sources for ${id}`);
+            return c.json(cachedData);
+        }
+
+        console.log(`[Sources] Fetching ToonStream data for ${id}`);
+
+        let serverSources = [];
+        
+        try {
+            const episodeData = await scrapeEpisodeStreaming(id);
+            console.log(`[Sources] Episode data:`, JSON.stringify({
+                success: episodeData?.success,
+                sourcesCount: episodeData?.sources?.length
+            }));
+
+            if (episodeData && episodeData.sources && episodeData.sources.length > 0) {
+                // Process all sources to extract iframe URLs
+                const sourcePromises = episodeData.sources.map(async (source, index) => {
+                    const sourceUrl = source.url;
+                    const serverName = source.name || `Server ${index + 1}`;
+
+                    try {
+                        // Direct iframe - use as is
+                        if (!sourceUrl.includes('trembed') && !sourceUrl.includes('toonstream.one/home')) {
+                            return {
+                                server: serverName,
+                                url: sourceUrl,
+                                type: 'direct'
+                            };
+                        }
+
+                        // Trembed URL - fetch and extract
+                        console.log(`[Sources] Fetching source: ${sourceUrl}`);
+                        const playerResponse = await axios.get(sourceUrl, {
+                            headers: {
+                                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                                'Referer': `https://toonstream.one/episode/${id}/`,
+                            },
+                            timeout: 5000
+                        });
+
+                        // Regex extraction
+                        let realIframeSrc = null;
+                        const dataSrcMatch = playerResponse.data.match(/<iframe[^>]+data-src=["']([^"']+)["']/i);
+                        const srcMatch = playerResponse.data.match(/<iframe[^>]+src=["']([^"']+)["']/i);
+
+                        if (dataSrcMatch) realIframeSrc = dataSrcMatch[1];
+                        else if (srcMatch) realIframeSrc = srcMatch[1];
+
+                        if (realIframeSrc) {
+                            realIframeSrc = decodeHTMLEntities(realIframeSrc);
+                            if (realIframeSrc.startsWith('//')) realIframeSrc = `https:${realIframeSrc}`;
+                            else if (realIframeSrc.startsWith('/')) realIframeSrc = `https://toonstream.one${realIframeSrc}`;
+                            else if (realIframeSrc.startsWith('http://')) realIframeSrc = realIframeSrc.replace('http://', 'https://');
+
+                            // Skip vidstreaming.xyz
+                            if (realIframeSrc.includes('vidstreaming.xyz')) {
+                                return {
+                                    server: serverName,
+                                    url: null,
+                                    type: 'extracted',
+                                    status: 'disabled',
+                                    error: 'vidstreaming.xyz is disabled'
+                                };
+                            }
+
+                            console.log(`[Sources] Successfully extracted: ${realIframeSrc}`);
+                            return {
+                                server: serverName,
+                                url: realIframeSrc,
+                                type: 'extracted',
+                                status: 'active'
+                            };
+                        }
+
+                        return {
+                            server: serverName,
+                            url: null,
+                            type: 'extracted',
+                            status: 'failed',
+                            error: 'No iframe found in source'
+                        };
+
+                    } catch (err) {
+                        console.error(`[Sources] Source failed: ${sourceUrl} - ${err.message}`);
+                        return {
+                            server: serverName,
+                            url: null,
+                            type: 'extracted',
+                            status: 'error',
+                            error: err.message
+                        };
+                    }
+                });
+
+                // Wait for all sources to be processed
+                const results = await Promise.allSettled(sourcePromises);
+                
+                serverSources = results.map((result, index) => {
+                    if (result.status === 'fulfilled') {
+                        return result.value;
+                    } else {
+                        return {
+                            server: `Server ${index + 1}`,
+                            url: null,
+                            type: 'unknown',
+                            status: 'error',
+                            error: result.reason?.message || 'Unknown error'
+                        };
+                    }
+                });
+            }
+        } catch (error) {
+            console.error(`[Sources] Failed to scrape episode data: ${error.message}`);
+            return c.json({
+                success: false,
+                episodeId: id,
+                servers: [],
+                error: error.message
+            }, 500);
+        }
+
+        // Filter out sources with no URL and create final response
+        const activeServers = serverSources.filter(s => s.url);
+        const failedServers = serverSources.filter(s => !s.url);
+
+        const responseData = {
             success: true,
-            message: 'Use /embed/:id for video playback',
-            embedUrl: `/embed/${id}`
-        });
+            episodeId: id,
+            totalServers: serverSources.length,
+            activeServers: activeServers.length,
+            failedServers: failedServers.length,
+            servers: serverSources,
+            activeServerUrls: activeServers.map(s => ({
+                server: s.server,
+                url: s.url
+            }))
+        };
+
+        // Cache the result for 30 minutes
+        setCache(cacheKey, responseData, 1800);
+
+        return c.json(responseData);
+
     } catch (error) {
+        console.error('[Sources] Error:', error.message);
         return c.json({
             success: false,
-            error: error.message
+            error: error.message,
+            servers: []
         }, 500);
     }
 });
@@ -38,9 +182,7 @@ embed.get('/embed/:id', async (c) => {
         const id = c.req.param('id');
         const cacheKey = `embed:${id}`;
 
-        // ...
-
-        // 1. Try to get from cache first
+        // Try to get from cache first
         const cachedSrc = getCache(cacheKey);
         if (cachedSrc) {
             console.log(`[Embed] Serving cached player for ${id}`);
@@ -62,8 +204,6 @@ embed.get('/embed/:id', async (c) => {
             if (episodeData && episodeData.sources && episodeData.sources.length > 0) {
                 allSources = episodeData.sources;
 
-                // Optimization: Parallel fetching with Promise.any
-                // We map all sources to promises and race them to find the first working one
                 const fetchSource = async (source) => {
                     const sourceUrl = source.url;
                     // Direct iframe - resolve immediately
@@ -79,7 +219,7 @@ embed.get('/embed/:id', async (c) => {
                                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
                                 'Referer': `https://toonstream.one/episode/${id}/`,
                             },
-                            timeout: 4000 // Reduced timeout to 4s
+                            timeout: 4000
                         });
 
                         // Regex extraction
@@ -106,19 +246,17 @@ embed.get('/embed/:id', async (c) => {
                         }
                         throw new Error('No iframe found in source');
                     } catch (err) {
-                        // console.error(`[Embed] Source failed: ${sourceUrl} - ${err.message}`);
-                        throw err; // Propagate error for Promise.any
+                        throw err;
                     }
                 };
 
-                // Limit concurrency to 5 to avoid "Too many subrequests"
+                // Limit concurrency to 5
                 const activeSources = allSources.slice(0, 5);
 
                 try {
                     iframeSrc = await Promise.any(activeSources.map(s => fetchSource(s)));
                 } catch (aggregateError) {
                     console.error('[Embed] All sources failed:', aggregateError.errors);
-                    // Fallback: throw the first error or a generic one
                     throw new Error('No working video source found (all attempts failed)');
                 }
             }
@@ -127,13 +265,10 @@ embed.get('/embed/:id', async (c) => {
             throw error;
         }
 
-        // 2. Extract iframe source
-        // (iframeSrc is now already extracted)
-
         if (iframeSrc) {
             // Cache the result
             if (!cachedSrc) {
-                setCache(cacheKey, iframeSrc, 1800); // 30 minutes
+                setCache(cacheKey, iframeSrc, 1800);
             }
 
             // Serve the clean player with the extracted iframe
@@ -146,11 +281,9 @@ embed.get('/embed/:id', async (c) => {
     } catch (error) {
         console.error('Embed error:', error.message);
 
-        // Check if it's a 404 or connection error
         const is404 = error.response?.status === 404 || error.message.includes('404');
         const isTimeout = error.message.includes('timeout') || error.code === 'ECONNABORTED';
 
-        // User-friendly error messages
         let errorTitle = 'Video Not Available';
         let errorMessage = 'This video is currently not available for streaming.';
 
@@ -225,7 +358,6 @@ embed.get('/embed/:id', async (c) => {
  * Generate clean player HTML
  */
 function generateCleanPlayer(iframeSrc) {
-    // Force HTTPS on the iframe src to prevent mixed content errors
     if (iframeSrc && iframeSrc.startsWith('http://')) {
         iframeSrc = iframeSrc.replace('http://', 'https://');
     }
@@ -268,61 +400,6 @@ function generateCleanPlayer(iframeSrc) {
 }
 
 /**
- * Get CSS for legacy fallback
- */
-function getEmbedStyles() {
-    return `
-        /* === HIDE ALL NON-PLAYER ELEMENTS === */
-        header, footer, nav, .header, .footer, .navigation, .nav,
-        [class*="header"]:not([class*="player"]), [class*="footer"]:not([class*="player"]),
-        [class*="nav"]:not([class*="player"]), .site-header, .site-footer, .site-nav,
-        .menu, .sidebar, .breadcrumb, [class*="menu"], [class*="sidebar"], [class*="breadcrumb"],
-        .related, .recommendations, .similar, [class*="related"], [class*="recommend"], [class*="similar"],
-        .comments, .social, .share, [class*="comment"], [class*="social"], [class*="share"],
-        .content-info, .episode-list, .series-info, [class*="episode-list"], [class*="series"],
-        .entry-header, .entry-footer, .entry-meta, .post-navigation, .widget, .widget-area,
-        /* === AD BLOCKING === */
-        [class*="ad-"], [id*="ad-"], [class*="ads"], [id*="ads"],
-        [class*="banner"], [id*="banner"], [class*="sponsor"], [id*="sponsor"],
-        [class*="popup"], [id*="popup"], [class*="overlay"]:not([class*="player"]),
-        [class*="modal"]:not([class*="player"]),
-        img[width="1"], img[height="1"],
-        iframe[src*="doubleclick"], iframe[src*="googlesyndication"],
-        iframe[src*="advertising"], iframe[src*="adserver"],
-        iframe[src*="ads."], iframe[src*="/ads/"],
-        [src*="doubleclick"], [src*="googlesyndication"], [src*="googleadservices"],
-        [src*="adservice"], [href*="adserver"], [href*="advertising"] {
-            display: none !important; visibility: hidden !important; opacity: 0 !important;
-            pointer-events: none !important; position: absolute !important; left: -9999px !important;
-        }
-        /* === RESET BODY STYLES === */
-        body { margin: 0 !important; padding: 0 !important; overflow: hidden !important; background: #000 !important; }
-        /* === FULLSCREEN PLAYER === */
-        .player, .player-container, .video-player,
-        [class*="player"]:not([class*="header"]):not([class*="footer"]),
-        [id*="player"], .video-container, [class*="video-container"],
-        iframe[src*="player"]:not([src*="ad"]):not([src*="doubleclick"]),
-        iframe[src*="embed"]:not([src*="ad"]):not([src*="doubleclick"]) {
-            width: 100vw !important; height: 100vh !important;
-            max-width: 100vw !important; max-height: 100vh !important;
-            margin: 0 !important; padding: 0 !important;
-            position: fixed !important; top: 0 !important; left: 0 !important;
-            z-index: 9999 !important; border: none !important;
-        }
-        /* Ensure player iframe is visible */
-        .player iframe:not([src*="ad"]), .player-container iframe:not([src*="ad"]),
-        [class*="player"] iframe:not([src*="ad"]) {
-            display: block !important; visibility: visible !important;
-        }
-        /* Block popunder and popup windows */
-        body::after {
-            content: ''; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            pointer-events: none; z-index: 10000;
-        }
-    `;
-}
-
-/**
  * Get AdBlock script
  */
 function getAdBlockScript() {
@@ -330,14 +407,12 @@ function getAdBlockScript() {
         (function() {
             'use strict';
             
-            // Aggressive popup blocking
             const originalWindowOpen = window.open;
             window.open = function() { 
                 console.log('[AdBlock] Blocked popup window'); 
                 return null; 
             };
             
-            // Block all new window/tab attempts
             window.addEventListener('click', function(e) {
                 if (e.target.tagName === 'A' && e.target.target === '_blank') {
                     e.preventDefault();
@@ -347,31 +422,26 @@ function getAdBlockScript() {
                 }
             }, true);
             
-            // Block popunders
             window.addEventListener('blur', function(e) {
                 if (document.activeElement && document.activeElement.tagName === 'IFRAME') { 
                     e.stopImmediatePropagation(); 
                 }
             }, true);
             
-            // Block beforeunload popups
             window.addEventListener('beforeunload', function(e) {
                 e.preventDefault();
                 e.stopPropagation();
                 return undefined;
             }, true);
             
-            // Block common ad scripts
             const blockList = ['doubleclick', 'googlesyndication', 'googleadservices', 'adservice', 'advertising', 'adserver', '/ads/', 'popunder', 'popup', 'pop-up'];
             
-            // Override document.write
             const originalDocWrite = document.write;
             document.write = function(content) {
                 if (blockList.some(pattern => content.toLowerCase().includes(pattern.toLowerCase()))) return;
                 return originalDocWrite.apply(document, arguments);
             };
             
-            // Block createElement
             const originalCreateElement = document.createElement;
             document.createElement = function(tagName) {
                 const element = originalCreateElement.call(document, tagName);
@@ -385,7 +455,6 @@ function getAdBlockScript() {
                 return element;
             };
             
-            // Remove ads
             function removeAds() {
                 const adSelectors = ['[class*="ad-"]', '[id*="ad-"]', '[class*="ads"]', '[id*="ads"]', '[class*="banner"]', '[class*="popup"]', '[class*="overlay"]:not([class*="player"])', 'iframe[src*="doubleclick"]', 'iframe[src*="googlesyndication"]', 'iframe[src*="advertising"]'];
                 adSelectors.forEach(selector => {
@@ -400,7 +469,6 @@ function getAdBlockScript() {
             document.addEventListener('DOMContentLoaded', removeAds);
             setInterval(removeAds, 1000);
             
-            // Block right-click on ads
             document.addEventListener('contextmenu', function(e) {
                 if (e.target.tagName === 'IFRAME' && e.target.src && blockList.some(pattern => e.target.src.toLowerCase().includes(pattern))) {
                     e.preventDefault(); 
