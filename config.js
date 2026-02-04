@@ -4,7 +4,7 @@ export default {
     nodeEnv: process.env.NODE_ENV || 'development',
 
     // ToonStream Base URL
-    baseUrl: 'https://toonstream.one',
+    baseUrl: 'https://toonstream.dad',
 
     // Cache Configuration (in seconds)
     cacheTTL: 3600,
