@@ -86,6 +86,43 @@ const filterSeasons = (allSeasons, seasonsQuery) => {
 };
 
 /**
+ * Extract anime card data from element
+ * @param {object} $el - Cheerio element
+ * @param {object} $ - Cheerio instance
+ * @returns {object|null} - Anime card data
+ */
+const extractAnimeCard = ($el, $) => {
+    try {
+        const link = $el.find('a[href*="/series/"], a[href*="/movies/"]').first();
+        const href = link.attr('href');
+        
+        if (!href) return null;
+        
+        const id = href.split('/').filter(Boolean).pop();
+        const title = link.attr('title') || $el.find('.title, h2, h3').first().text().trim();
+        
+        let poster = $el.find('img').first().attr('src') || 
+                     $el.find('img').first().attr('data-src') || '';
+        if (poster && !poster.startsWith('http')) {
+            poster = poster.startsWith('//') ? `https:${poster}` : `https://toonstream.one${poster}`;
+        }
+        
+        const ratingEl = $el.find('.rating, .vote, .tmdb');
+        const rating = parseFloat(ratingEl.text().match(/[\d.]+/)?.[0]) || null;
+        
+        return {
+            id,
+            title,
+            poster,
+            rating,
+            url: href
+        };
+    } catch (error) {
+        return null;
+    }
+};
+
+/**
  * Scrape anime/series details with optional seasons filtering
  * @param {string} id - Anime ID/slug
  * @param {string} seasonsQuery - Optional seasons query parameter
@@ -174,7 +211,7 @@ export const scrapeAnimeDetails = async (id, seasonsQuery = null) => {
         // Extract languages
         const languages = [];
         const pageText = $('body').text();
-        const langMatches = pageText.match(/Hindi|Tamil|Telugu|English|Japanese|Urdu/gi) || [];
+        const langMatches = pageText.match(/Hindi|Tamil|Telugu|English|Japanese|Urdu|Malayalam|Kannada|Bengali|Marathi/gi) || [];
         langMatches.forEach(lang => {
             const normalized = lang.charAt(0).toUpperCase() + lang.slice(1).toLowerCase();
             if (!languages.includes(normalized)) {
