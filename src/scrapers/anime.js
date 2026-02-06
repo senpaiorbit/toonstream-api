@@ -2,12 +2,103 @@ import { fetchPage, parseHTML, extractEpisodeInfo, cleanText } from '../utils/sc
 import { getCache, setCache } from '../utils/cache.js';
 
 /**
- * Scrape anime/series details
+ * Parse seasons query parameter - supports [1,2,3], [1-3], "all", or "latest"
+ * @param {string} seasonsParam - Seasons query string
+ * @returns {string|number[]} - "all", "latest", or array of season numbers
+ */
+const parseSeasons = (seasonsParam) => {
+    if (!seasonsParam) return null; // Return all available seasons by default
+    
+    // Remove brackets if present
+    let cleaned = seasonsParam.trim();
+    if (cleaned.startsWith('[') && cleaned.endsWith(']')) {
+        cleaned = cleaned.slice(1, -1);
+    }
+    
+    if (cleaned.toLowerCase() === 'all') {
+        return 'all';
+    }
+    
+    if (cleaned.toLowerCase() === 'latest') {
+        return 'latest';
+    }
+    
+    const seasons = [];
+    const parts = cleaned.split(',');
+    
+    for (const part of parts) {
+        const trimmed = part.trim();
+        
+        // Range: 1-3
+        if (trimmed.includes('-')) {
+            const [start, end] = trimmed.split('-').map(n => parseInt(n.trim()));
+            if (!isNaN(start) && !isNaN(end)) {
+                for (let i = start; i <= end; i++) {
+                    if (!seasons.includes(i)) seasons.push(i);
+                }
+            }
+        }
+        // Single number: 1, 2, 3
+        else {
+            const num = parseInt(trimmed);
+            if (!isNaN(num) && !seasons.includes(num)) {
+                seasons.push(num);
+            }
+        }
+    }
+    
+    return seasons.sort((a, b) => a - b);
+};
+
+/**
+ * Filter seasons based on query
+ * @param {object} allSeasons - All available seasons object
+ * @param {string|number[]} seasonsQuery - Parsed seasons query
+ * @returns {object} - Filtered seasons object
+ */
+const filterSeasons = (allSeasons, seasonsQuery) => {
+    if (!seasonsQuery) {
+        // No query provided, return all seasons
+        return allSeasons;
+    }
+    
+    const seasonNumbers = Object.keys(allSeasons).map(n => parseInt(n)).sort((a, b) => a - b);
+    
+    if (seasonsQuery === 'all') {
+        return allSeasons;
+    }
+    
+    if (seasonsQuery === 'latest') {
+        // Return only the highest season number
+        const latestSeason = Math.max(...seasonNumbers);
+        return { [latestSeason]: allSeasons[latestSeason] };
+    }
+    
+    // Filter specific seasons
+    const filtered = {};
+    seasonsQuery.forEach(seasonNum => {
+        if (allSeasons[seasonNum]) {
+            filtered[seasonNum] = allSeasons[seasonNum];
+        }
+    });
+    
+    return filtered;
+};
+
+/**
+ * Scrape anime/series details with optional seasons filtering
  * @param {string} id - Anime ID/slug
+ * @param {string} seasonsQuery - Optional seasons query parameter
  * @returns {Promise<object>} Anime details
  */
-export const scrapeAnimeDetails = async (id) => {
-    const cacheKey = `anime:${id}`;
+export const scrapeAnimeDetails = async (id, seasonsQuery = null) => {
+    const parsedSeasons = parseSeasons(seasonsQuery);
+    
+    // Create cache key that includes seasons query
+    const cacheKey = seasonsQuery 
+        ? `anime:${id}:seasons:${seasonsQuery}`
+        : `anime:${id}`;
+    
     const cached = getCache(cacheKey);
 
     if (cached) {
@@ -110,7 +201,7 @@ export const scrapeAnimeDetails = async (id) => {
         });
 
         // Extract episodes by season
-        const seasons = {};
+        const allSeasons = {};
         let allEpisodes = [];
 
         // Look for season containers
@@ -137,12 +228,12 @@ export const scrapeAnimeDetails = async (id) => {
             });
 
             if (episodes.length > 0) {
-                seasons[seasonNum] = episodes;
+                allSeasons[seasonNum] = episodes;
             }
         });
 
         // If no seasons found via containers, try to get all episode links and group them
-        if (Object.keys(seasons).length === 0) {
+        if (Object.keys(allSeasons).length === 0) {
             $('a[href*="/episode/"]').each((_, el) => {
                 const container = $(el).closest('li, .episode-item');
                 const elementToParse = container.length ? container : $(el).parent();
@@ -156,12 +247,29 @@ export const scrapeAnimeDetails = async (id) => {
             // Group by season number
             allEpisodes.forEach(ep => {
                 const seasonNum = ep.season || 1;
-                if (!seasons[seasonNum]) {
-                    seasons[seasonNum] = [];
+                if (!allSeasons[seasonNum]) {
+                    allSeasons[seasonNum] = [];
                 }
-                seasons[seasonNum].push(ep);
+                allSeasons[seasonNum].push(ep);
             });
         }
+
+        // Filter seasons based on query
+        const filteredSeasons = filterSeasons(allSeasons, parsedSeasons);
+        
+        // Calculate total episodes from filtered seasons
+        const filteredEpisodes = Object.values(filteredSeasons).flat();
+        
+        // Get available seasons info
+        const availableSeasons = Object.keys(allSeasons)
+            .map(n => parseInt(n))
+            .sort((a, b) => a - b);
+        
+        const requestedSeasons = parsedSeasons === 'all' 
+            ? availableSeasons 
+            : parsedSeasons === 'latest'
+            ? [Math.max(...availableSeasons)]
+            : parsedSeasons || availableSeasons;
 
         const data = {
             success: true,
@@ -176,7 +284,11 @@ export const scrapeAnimeDetails = async (id) => {
             languages,
             cast,
             totalEpisodes: allEpisodes.length,
-            seasons,
+            totalSeasons: availableSeasons.length,
+            availableSeasons,
+            requestedSeasons: Array.isArray(requestedSeasons) ? requestedSeasons : requestedSeasons,
+            seasons: filteredSeasons,
+            filteredEpisodes: filteredEpisodes.length,
             related
         };
 
@@ -202,6 +314,7 @@ export const checkBatchAvailability = async (ids) => {
                     id,
                     available: true,
                     totalEpisodes: data.totalEpisodes,
+                    totalSeasons: data.totalSeasons,
                     hasHindi: data.languages.includes('Hindi')
                 };
             } catch (error) {
