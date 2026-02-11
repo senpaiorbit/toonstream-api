@@ -1,7 +1,6 @@
 import config from '../../config.js';
 
-// Simple in-memory cache for Workers
-// Replaces node-cache which uses global timers (forbidden in Workers)
+// Simple in-memory cache for serverless environments
 class SimpleCache {
     constructor(options = {}) {
         this.cache = new Map();

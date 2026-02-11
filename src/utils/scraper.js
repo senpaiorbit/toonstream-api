@@ -14,7 +14,7 @@ const client = wrapper(axios.create({
 }));
 
 /**
- * Fetch a page with Cloudflare bypass
+ * Fetch a page with proper headers
  * @param {string} url - URL to fetch
  * @param {object} options - Additional options
  * @returns {Promise<string>} HTML content
@@ -201,7 +201,6 @@ export const extractEpisodeInfo = ($element, $) => {
         const title = link.text().trim() || link.attr('title') || '';
 
         // Extract ID from URL: /episode/anime-id-episode-num/
-        // Example: /episode/naruto-1x1/ -> naruto-1x1
         let id = null;
         if (url) {
             const match = url.match(/\/episode\/([^\/]+)/);
@@ -211,7 +210,6 @@ export const extractEpisodeInfo = ($element, $) => {
         }
 
         // Parse season and episode number from ID or title
-        // ID format: anime-slug-SxEp or anime-slug-episode-num
         let season = 1;
         let number = 0;
 
@@ -332,8 +330,7 @@ export const decodeHTMLEntities = (text) => {
  * @returns {string|null} Player URL
  */
 export const extractPlayerUrl = ($) => {
-    // Prioritize data-src, then src, then data-lazy-src
-    // Look in common player containers
+    // Prioritize data-src, then src
     let src = $('iframe[data-src*="player"], iframe[data-src*="embed"], iframe[data-src*="trembed"], .player iframe, .Video iframe').attr('data-src')
         || $('iframe[src*="player"], iframe[src*="embed"], iframe[src*="trembed"], .player iframe, .Video iframe').attr('src');
 
@@ -356,4 +353,19 @@ export const extractPlayerUrl = ($) => {
     }
 
     return src;
+};
+
+export default {
+    fetchPage,
+    parseHTML,
+    normalizeImageUrl,
+    normalizeUrl,
+    extractAnimeId,
+    extractAnimeCard,
+    extractEpisodeInfo,
+    extractPagination,
+    cleanText,
+    extractSlug,
+    decodeHTMLEntities,
+    extractPlayerUrl
 };

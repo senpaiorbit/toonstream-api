@@ -1,19 +1,19 @@
 {
   "name": "toonstream-api",
   "version": "1.0.0",
-  "description": "A comprehensive RESTful API for scraping anime content from toonstream.one - Optimized for Cloudflare Workers",
-  "main": "src/worker.js",
+  "description": "A comprehensive RESTful API for scraping anime content from toonstream.one - Optimized for Vercel",
+  "main": "api/index.js",
   "type": "module",
   "private": true,
   "engines": {
     "node": ">=18.x"
   },
   "scripts": {
-    "dev": "wrangler dev",
-    "start": "wrangler dev",
+    "dev": "node src/server.js",
+    "start": "node src/server.js",
     "lint": "eslint",
     "lint:fix": "eslint --fix && prettier . --write",
-    "deploy": "wrangler deploy"
+    "vercel-build": "echo 'Build complete'"
   },
   "keywords": [
     "anime",
@@ -21,13 +21,13 @@
     "scraper",
     "api",
     "rest",
-    "cloudflare",
-    "workers",
+    "vercel",
     "serverless"
   ],
   "author": "RY4N",
   "license": "MIT",
   "dependencies": {
+    "@hono/node-server": "^1.19.7",
     "@hono/swagger-ui": "^0.5.2",
     "axios": "^1.13.2",
     "axios-cookiejar-support": "^6.0.5",
@@ -43,7 +43,6 @@
     "@types/bun": "latest",
     "eslint": "^9.29.0",
     "eslint-config-prettier": "^10.1.5",
-    "prettier": "^3.5.3",
-    "wrangler": "^4.51.0"
+    "prettier": "^3.5.3"
   }
 }

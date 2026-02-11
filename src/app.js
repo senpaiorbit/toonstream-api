@@ -4,7 +4,6 @@ import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { prettyJSON } from 'hono/pretty-json';
 import { swaggerUI } from '@hono/swagger-ui';
-// import { rateLimiter } from 'hono-rate-limiter';
 
 // Import routes
 import homeRoutes from './routes/home.js';
@@ -28,18 +27,7 @@ app.use('*', cors({
     exposeHeaders: ['Content-Length', 'X-Request-Id']
 }));
 
-// Rate limiting removed for Cloudflare Workers compatibility
-// Cloudflare provides edge rate limiting
-// const limiter = rateLimiter({
-//     windowMs: config.rateLimit.windowMs,
-//     limit: config.rateLimit.maxRequests,
-//     standardHeaders: 'draft-6',
-//     keyGenerator: (c) => c.req.header('x-forwarded-for') || 'anonymous'
-// });
-
-// app.use('/api/*', limiter);
-
-// API Routes (removed /v1)
+// API Routes
 app.route('/api/home', homeRoutes);
 app.route('/api/search', searchRoutes);
 app.route('/api/anime', animeRoutes);
@@ -95,7 +83,7 @@ app.get('/api/openapi.json', (c) => {
         },
         servers: [
             {
-                url: 'https://toonstream-api.ry4n.qzz.io',
+                url: 'https://toonstream-api.vercel.app',
                 description: 'Production server'
             },
             {
@@ -280,10 +268,4 @@ app.onError((err, c) => {
     }, 500);
 });
 
-// Start server
-console.log(`🚀 ToonStream API starting on port ${config.port}...`);
-console.log(`📚 Documentation available at http://localhost:${config.port}/docs`);
-console.log(`🌐 Base URL: ${config.baseUrl}`);
-
 export default app;
-

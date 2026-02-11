@@ -1,57 +1,33 @@
-<div align="center">
+# 🎬 ToonStream API
 
-# ToonStream API
+A comprehensive RESTful API for scraping anime content from toonstream.one - Optimized for **Vercel** serverless deployment.
 
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Cloudflare Workers](https://img.shields.io/badge/Cloudflare_Workers-F38020?logo=cloudflare&logoColor=white)](https://workers.cloudflare.com)
-[![Hono](https://img.shields.io/badge/Hono-4.0+-orange?logo=hono)](https://hono.dev)
-[![Node.js](https://img.shields.io/badge/Node.js-18+-green?logo=node.js)](https://nodejs.org)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/ryanwtf88/toonstream-api)
 
-**A comprehensive RESTful API for scraping anime content from toonstream.one**
+## ✨ Features
 
-**Optimized for Cloudflare Workers**
+- 🏠 **Homepage Data** - Latest series, movies, and schedule
+- 🔍 **Search** - Find anime with pagination and suggestions
+- 📺 **Anime Details** - Complete information with related content
+- 🎥 **Episode Streaming** - Multiple server links with quality options
+- 📁 **Categories** - Browse by genre, language, and type
+- 📅 **Schedule** - Weekly release calendar
+- 🎲 **Random** - Get random movies or series
+- 🆕 **Latest** - Latest movies and series
+- 🎮 **Embed Player** - Optimized player with ad blocking
+- 📖 **Swagger UI** - Interactive API documentation
 
-[Features](#features) • [Installation](#installation) • [Configuration](#configuration) • [Deployment](#deployment) • [API Endpoints](#api-endpoints)
+## 🚀 Quick Start
 
-</div>
+### Deploy to Vercel (Recommended)
 
----
+1. Click the "Deploy with Vercel" button above
+2. Your API will be live in seconds!
 
-## Features
-
-### Core Functionality
-- **Home Page Data** - Latest series, movies, and schedules
-- **Search Engine** - Full-text search with pagination
-- **Anime Details** - Comprehensive information with related content
-- **Episode Streaming** - Extract video sources and links
-- **Category Browsing** - Filter by genre, language, type
-- **Release Schedule** - Weekly anime release calendar
-- **Embed Player** - Optimized, ad-free player embed
-- **Random Content** - Get random movies or series
-- **Latest Content** - Get latest movies or series
-
-### Technical Features
-- **Serverless** - Built for Cloudflare Workers
-- **High Performance** - Edge caching system
-- **Error Handling** - Comprehensive error responses
-- **API Documentation** - Interactive Swagger UI
-- **Cloudflare Bypass** - Axios + cookie jar support
-- **Ad Blocking** - Brave-style ad blocking for embeds
-
----
-
-## Installation
-
-### Prerequisites
-
-- [Node.js](https://nodejs.org/) (v18+)
-- [Wrangler CLI](https://developers.cloudflare.com/workers/wrangler/install-and-update/)
-- Cloudflare Account
-
-### Quick Start
+### Local Development
 
 ```bash
-# Clone repository
+# Clone the repository
 git clone https://github.com/ryanwtf88/toonstream-api.git
 cd toonstream-api
 
@@ -62,441 +38,206 @@ npm install
 npm run dev
 ```
 
-The server will be running at `http://localhost:8787`
+The API will be available at `http://localhost:3030`
 
----
+## 📚 API Endpoints
 
-## Configuration
-
-### 1. Wrangler Configuration
-
-Edit `wrangler.toml`:
-
-```toml
-name = "toonstream-api"
-main = "src/worker.js"
-compatibility_date = "2024-11-29"
-compatibility_flags = ["nodejs_compat"]
-account_id = "your-cloudflare-account-id"  # Replace with your Cloudflare Account ID
-
-[observability]
-enabled = true
+### Home
 ```
-
-**Finding Your Account ID:**
-1. Log in to [Cloudflare Dashboard](https://dash.cloudflare.com)
-2. Select your account
-3. Copy Account ID from the right sidebar
-
-### 2. Application Configuration
-
-Edit `config.js`:
-
-```javascript
-export default {
-  port: 3030,
-  baseUrl: 'https://toonstream.one',
-  cacheTTL: 3600,
-  rateLimit: {
-    windowMs: 60000,
-    maxRequests: 100
-  }
-};
-```
-
----
-
-## Deployment
-
-### Deploy to Cloudflare Workers
-
-#### 1. Login to Cloudflare
-
-```bash
-npx wrangler login
-```
-
-#### 2. Configure Account ID
-
-Update `wrangler.toml` with your Cloudflare Account ID:
-
-```toml
-account_id = "your-cloudflare-account-id"
-```
-
-#### 3. Deploy
-
-```bash
-npm run deploy
-```
-
-Your API will be deployed to: `https://toonstream-api.<your-subdomain>.workers.dev`
-
-#### 4. Custom Domain (Optional)
-
-1. Go to Cloudflare Dashboard
-2. Navigate to Workers & Pages
-3. Select your worker
-4. Go to Settings > Triggers
-5. Add Custom Domain
-
----
-
-## API Endpoints
-
-### Base URL
-```
-https://your-worker.workers.dev
-```
-
-### Documentation
-- **Interactive Docs**: `GET /` (Swagger UI)
-- **JSON Endpoint List**: `GET /docs`
-- **OpenAPI Spec**: `GET /api/openapi.json`
-
-### Core Endpoints
-
-#### Home
-```http
 GET /api/home
 ```
-Get homepage data with latest series, movies, and schedule.
+Returns latest series, movies, and schedule from homepage.
 
-**Response:**
-```json
-{
-  "latestSeries": [...],
-  "latestMovies": [...],
-  "trending": [...],
-  "schedule": {...}
-}
+### Search
 ```
-
-#### Search
-```http
 GET /api/search?keyword={query}&page={page}
-```
-Search for anime by keyword.
-
-**Parameters:**
-- `keyword` (required) - Search query
-- `page` (optional) - Page number (default: 1)
-
-**Response:**
-```json
-{
-  "success": true,
-  "results": [...],
-  "pagination": {...}
-}
-```
-
-#### Search Suggestions
-```http
 GET /api/search/suggestions?keyword={query}
 ```
-Get search suggestions for autocomplete.
+Search anime with pagination and get search suggestions.
 
-#### Anime Details
-```http
+### Anime Details
+```
 GET /api/anime/{id}
 ```
-Get detailed information about a specific anime.
+Get complete anime information including episodes and related content.
 
-**Response:**
-```json
-{
-  "success": true,
-  "id": "anime-id",
-  "title": "Anime Title",
-  "poster": "...",
-  "description": "...",
-  "genres": [...],
-  "languages": [...],
-  "seasons": {...},
-  "related": [...]
-}
+### Episode Streaming
 ```
-
-#### Episode Streaming
-```http
 GET /api/episode/{id}
-```
-Get streaming links for an episode.
-
-**Response:**
-```json
-{
-  "success": true,
-  "sources": [...],
-  "downloads": [...],
-  "servers": [...]
-}
-```
-
-#### Episode Server
-```http
 GET /api/episode/{id}/servers/{serverId}
 ```
-Get specific server links for an episode.
+Get streaming links from all servers or a specific server.
 
-### Category Endpoints
-
-#### All Categories
-```http
+### Categories
+```
 GET /api/categories
-```
-Get list of all available categories.
-
-#### Category Content
-```http
 GET /api/category/{name}?page={page}
-```
-Get anime by category.
-
-**Examples:**
-- `/api/category/action`
-- `/api/category/romance?page=2`
-
-#### Language Filter
-```http
 GET /api/category/language/{lang}?page={page}
-```
-Get anime by language.
-
-**Supported Languages:**
-- `hindi`
-- `tamil`
-- `telugu`
-- `english`
-
-#### Movies
-```http
 GET /api/category/type/movies?page={page}
-```
-Get anime movies.
-
-#### Series
-```http
 GET /api/category/type/series?page={page}
 ```
-Get anime series.
-
-### Latest Content
-
-#### Latest Movies
-```http
-GET /api/category/latest/movies?page={page}
-```
-Get latest anime movies.
-
-#### Latest Series
-```http
-GET /api/category/latest/series?page={page}
-```
-Get latest anime series.
-
-### Random Content
-
-#### Random Movie
-```http
-GET /api/category/random/movie
-```
-Get a random anime movie.
-
-#### Random Series
-```http
-GET /api/category/random/series
-```
-Get a random anime series.
+Browse anime by category, language, or type.
 
 ### Schedule
-
-#### Weekly Schedule
-```http
+```
 GET /api/schedule
-```
-Get weekly release schedule.
-
-**Response:**
-```json
-{
-  "success": true,
-  "schedule": {
-    "monday": [...],
-    "tuesday": [...],
-    ...
-  }
-}
-```
-
-#### Daily Schedule
-```http
 GET /api/schedule/{day}
 ```
-Get schedule for a specific day.
+Get weekly schedule or schedule for a specific day.
 
-**Days:** `monday`, `tuesday`, `wednesday`, `thursday`, `friday`, `saturday`, `sunday`
+### Latest & Random
+```
+GET /api/category/latest/movies
+GET /api/category/latest/series
+GET /api/category/random/movie
+GET /api/category/random/series
+```
+Get latest or random anime content.
 
-### Embed
-
-#### Optimized Player
-```http
+### Embed Player
+```
 GET /embed/{id}
 ```
-Get optimized, ad-free player embed.
+Optimized player embed with ad blocking.
 
-**Features:**
-- Clean iframe extraction
-- Ad blocking
-- Loading overlay
-- Caching
+### Batch Operations
+```
+POST /api/anime/batch-availability
+Body: { "ids": ["anime-id-1", "anime-id-2"] }
+```
+Check availability of multiple anime at once.
 
----
+## 📖 Documentation
 
-## Response Format
+- **Swagger UI**: Visit `/` on your deployed API
+- **Endpoint List**: Visit `/docs` for a JSON list of all endpoints
+- **OpenAPI Spec**: Available at `/api/openapi.json`
 
-### Success Response
+## 🛠️ Configuration
 
-```json
-{
-  "success": true,
-  "data": {
-    ...
-  }
-}
+Environment variables (optional):
+
+```env
+PORT=3030
+NODE_ENV=production
 ```
 
-### Error Response
+Edit `config.js` to customize:
+- Cache TTL (default: 3600 seconds)
+- Request timeout
+- User agent
+- Base URL
 
-```json
-{
-  "success": false,
-  "error": "Error message"
-}
-```
-
----
-
-## Project Structure
+## 📦 Project Structure
 
 ```
 toonstream-api/
-├── config.js              # Configuration
+├── api/
+│   └── index.js          # Vercel serverless entry point
 ├── src/
-│   ├── worker.js          # Cloudflare Worker Entry Point
-│   ├── app.js             # Main Hono Application
-│   ├── routes/            # API Routes
-│   │   ├── home.js
-│   │   ├── search.js
+│   ├── routes/           # API route handlers
 │   │   ├── anime.js
+│   │   ├── categories.js
+│   │   ├── embed.js
 │   │   ├── episodes.js
-│   │   ├── categories.js
-│   │   ├── schedule.js
-│   │   └── embed.js
-│   ├── scrapers/          # Web Scrapers
 │   │   ├── home.js
-│   │   ├── search.js
+│   │   ├── schedule.js
+│   │   └── search.js
+│   ├── scrapers/         # Web scraping logic
 │   │   ├── anime.js
-│   │   ├── streaming.js
 │   │   ├── categories.js
-│   │   └── schedule.js
-│   └── utils/
-│       ├── scraper.js     # Scraping Utilities
-│       └── cache.js       # Worker-Compatible Cache
-├── package.json
-├── wrangler.toml          # Cloudflare Configuration
-└── README.md
+│   │   ├── home.js
+│   │   ├── schedule.js
+│   │   ├── search.js
+│   │   └── streaming.js
+│   ├── utils/            # Utility functions
+│   │   ├── cache.js      # In-memory caching
+│   │   └── scraper.js    # Scraping utilities
+│   ├── app.js            # Hono app setup
+│   └── server.js         # Local development server
+├── config.js             # Configuration
+├── vercel.json           # Vercel deployment config
+└── package.json
 ```
 
----
+## 🔧 Technologies
 
-## Technology Stack
+- **Framework**: [Hono](https://hono.dev/) - Ultra-fast web framework
+- **Scraping**: [Cheerio](https://cheerio.js.org/) - jQuery-like HTML parsing
+- **HTTP Client**: [Axios](https://axios-http.com/) - Promise-based HTTP client
+- **Deployment**: [Vercel](https://vercel.com/) - Serverless platform
+- **Documentation**: [Swagger UI](https://swagger.io/tools/swagger-ui/) - Interactive API docs
 
-| Technology | Purpose |
-|------------|---------|
-| ![Cloudflare](https://img.shields.io/badge/Cloudflare-F38020?logo=cloudflare&logoColor=white) | Edge Platform |
-| ![Hono](https://img.shields.io/badge/Hono-orange?logo=hono&logoColor=white) | Web Framework |
-| ![Axios](https://img.shields.io/badge/Axios-5A29E4?logo=axios&logoColor=white) | HTTP Client |
-| ![Cheerio](https://img.shields.io/badge/Cheerio-E88C00?logoColor=white) | HTML Parsing |
+## 📝 Example Usage
 
----
+### JavaScript/Node.js
+```javascript
+// Search for anime
+const response = await fetch('https://your-api.vercel.app/api/search?keyword=naruto');
+const data = await response.json();
+console.log(data);
 
-## Development
+// Get anime details
+const anime = await fetch('https://your-api.vercel.app/api/anime/naruto-shippuden');
+const details = await anime.json();
+console.log(details);
 
-### Available Scripts
+// Get episode streaming links
+const episode = await fetch('https://your-api.vercel.app/api/episode/naruto-shippuden-episode-1');
+const streams = await episode.json();
+console.log(streams);
+```
 
+### Python
+```python
+import requests
+
+# Search for anime
+response = requests.get('https://your-api.vercel.app/api/search?keyword=naruto')
+data = response.json()
+print(data)
+
+# Get anime details
+anime = requests.get('https://your-api.vercel.app/api/anime/naruto-shippuden')
+details = anime.json()
+print(details)
+```
+
+### cURL
 ```bash
-# Development mode with hot reload
-npm run dev
+# Search for anime
+curl "https://your-api.vercel.app/api/search?keyword=naruto"
 
-# Deploy to Cloudflare Workers
-npm run deploy
+# Get anime details
+curl "https://your-api.vercel.app/api/anime/naruto-shippuden"
 
-# Lint code
-npm run lint
-
-# Format code
-npm run lint:fix
+# Get episode streaming links
+curl "https://your-api.vercel.app/api/episode/naruto-shippuden-episode-1"
 ```
 
----
+## 🤝 Contributing
 
-## Troubleshooting
+Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
-### Common Issues
-
-**Account ID Missing**
-```bash
-Error: Missing account_id in wrangler.toml
-```
-Solution: Add your Cloudflare Account ID to `wrangler.toml`
-
-**Authentication Error**
-```bash
-Error: Not authenticated
-```
-Solution: Run `npx wrangler login`
-
-**Build Errors**
-```bash
-Error: nodejs_compat flag required
-```
-Solution: Ensure `compatibility_flags = ["nodejs_compat"]` is in `wrangler.toml`
-
----
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
----
-
-## License
-
-![License](https://img.shields.io/badge/license-MIT-blue.svg)
+## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
+## ⚠️ Disclaimer
+
+This API is for educational purposes only. The scraping of content should comply with the terms of service of the target website. Use responsibly and respect copyright laws.
+
+## 🙏 Acknowledgments
+
+- Data source: [toonstream.one](https://toonstream.one)
+- Built with [Hono](https://hono.dev/)
+- Deployed on [Vercel](https://vercel.com/)
+
+## 📧 Contact
+
+- Author: RY4N
+- GitHub: [@ryanwtf88](https://github.com/ryanwtf88)
+
 ---
 
-## Disclaimer
-
-> **Warning**: This API is for educational purposes only. Web scraping may violate the website's Terms of Service. Use responsibly and at your own risk.
-
----
-
-<div align="center">
-
-**Made with ❤️ for the anime community**
-
-[![GitHub](https://img.shields.io/badge/GitHub-ryanwtf88-black?logo=github)](https://github.com/ryanwtf88)
-[![Stars](https://img.shields.io/github/stars/ryanwtf88/toonstream-api?style=social)](https://github.com/ryanwtf88/toonstream-api)
-
-</div>
+**Note**: This API scrapes content from toonstream.one. Make sure to respect their terms of service and rate limits. The API includes caching to minimize requests to the source website.
