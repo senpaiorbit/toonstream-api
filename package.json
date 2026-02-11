@@ -29,12 +29,12 @@
   "dependencies": {
     "@hono/node-server": "^1.19.7",
     "@hono/swagger-ui": "^0.5.2",
-    "axios": "^1.13.2",
+    "axios": "^1.13.5",
     "axios-cookiejar-support": "^6.0.5",
     "cheerio": "^1.0.0",
     "crypto-js": "^4.2.0",
     "dotenv": "^16.4.7",
-    "hono": "^4.6.5",
+    "hono": "^4.11.9",
     "node-cache": "^5.1.2",
     "node-fetch": "^3.3.2",
     "tough-cookie": "^6.0.0"
